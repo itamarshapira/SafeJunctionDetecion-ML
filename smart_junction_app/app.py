@@ -214,11 +214,69 @@ def convert_itm_to_wgs84(x, y):
 # המרת הקואורדינטות של הצומת
 lat, lon = convert_itm_to_wgs84(nearest_row["X"], nearest_row["Y"])
 
-# יצירת המפה ממוקדת על הצומת
+# Create a map centered on the detected intersection coordinates
 m = folium.Map(location=[lat, lon], zoom_start=16)
 
-# הוספת סימון לצומת
-folium.Marker([lat, lon], popup="🔵 Selected Junction").add_to(m)
+
+
+# === TOP BANNER SECTION (STATIC + AUTO-DISMISS) ===
+
+# Import Element from branca to insert custom HTML into the map
+from branca.element import Element
+
+# Define HTML and inline CSS for a top banner that appears above the map
+# The banner will auto-hide after 3 seconds using JavaScript
+banner_html = f"""
+<div id="alert-banner" style="
+    position: fixed;
+    top: 0px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: {'#ff4d4d' if prediction == 1 else '#90ee90'};
+    color: black;
+    padding: 12px 30px;
+    border-radius: 0 0 12px 12px;
+    font-weight: bold;
+    font-size: 18px;
+    z-index: 9999;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.3);
+    transition: opacity 1s ease-out;
+">
+    {'⚠️ Dangerous Intersection – Drive Carefully!' if prediction == 1 else '✅ Safe Intersection – Continue Driving'}
+</div>
+
+<script>
+    // JavaScript to fade out the banner after 3 seconds
+    setTimeout(function() {{
+        var banner = document.getElementById('alert-banner');
+        if (banner) {{
+            banner.style.opacity = '0';
+        }}
+    }}, 3000);
+</script>
+"""
+
+# Inject the banner HTML into the map's root element
+m.get_root().html.add_child(Element(banner_html))
+
+# === MAP MARKER SECTION ===
+
+# Choose marker color and popup text based on prediction result
+if prediction == 1:
+    color = "red"
+    icon_text = "⚠️ High Risk – Drive Carefully!"
+else:
+    color = "green"
+    icon_text = "✅ Low Risk – Safe"
+
+# Add a visible marker to the map to indicate the intersection location
+# Includes popup message and color-coded icon
+folium.Marker(
+    [lat, lon],
+    popup=icon_text,
+    icon=folium.Icon(color=color, icon="info-sign")
+).add_to(m)
+
 
 # הצגת המפה ב-Streamlit
 st.write("### 🗺️ Intersection Location on Map")
