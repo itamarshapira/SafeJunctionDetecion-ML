@@ -1,128 +1,118 @@
 # 🚦 Smart Junction Risk Detection
 
-**Machine Learning meets Real-Time Safety Alerts**  
-A final-year project that combines data science, machine learning, and geospatial data to detect dangerous intersections for drivers based on personal, temporal, and environmental conditions.
+**Final Year Project – Sapir College (2025)**  
+A full machine learning pipeline combined with an interactive web app for detecting dangerous intersections based on driver context, environment, and historical data.
 
 ---
 
-## 📊 Project Summary
+## 🧭 Project Overview
 
-This project is structured in four parts:
+Urban intersections are critical points where accidents frequently occur.  
+Our goal was to build a machine learning model that can **predict whether a given intersection is high-risk**, for a specific driver and context (time, weather, road conditions).
 
-1. **A. ML Pipeline** – From raw accident records to risk prediction
-2. **B. Insights & Visual Analysis** – Data exploration and interpretability
-3. **C. Model Reuse** – Save & reuse the trained model in production
-4. **D. App** – Real-time prediction with interactive map
+This project was supervised by **Dr. Amir Kolman** and followed a structured end-to-end ML methodology.
 
 ---
 
-## 🧠 Problem Definition
+## 1️⃣ Problem Definition
 
-Urban intersections are prone to high accident rates.  
-Our goal is to predict how dangerous a specific intersection is **for a specific driver**, based on accident history and contextual factors such as:
+The original datasets did not include any explicit “risk” labels.  
+We defined a risk score per intersection based on accident severity, to allow supervised learning. This involved:
 
-- Time and day
-- Weather
-- Driver demographics
-- Road characteristics
-
----
-
-## 🎯 Risk Score Definition
-
-Since the raw dataset does not contain a 'danger' label, we created a custom score:
-
-### ✅ `Base_Risk_Score`
-
-Inspired by CBS methodology:
-
-> Weighted sum of accident types:
->
-> ```
-> 6 × fatal + 3 × severe + 1 × light
-> ```
-
-This creates a continuous risk score that we later **normalized** and converted into:
-
-- Regression target
-- Or binary class (high-risk vs. not)
+- Aggregating accident records by intersection
+- Creating a **Base Risk Score** using HALMAS-inspired weights:
+  > `6 × Fatal + 3 × Severe + 1 × Light`
+- Normalizing these scores and converting them into binary labels: `High Risk` vs `Low Risk`
 
 ---
 
-## 🔄 ML Workflow (6 Steps)
+## 2️⃣ Data Collection & Preparation
 
-1. **Import & Merge** accident datasets
-2. **Clean + Normalize** features
-3. **Aggregate** at intersection level
-4. **Feature Engineering** – encode time, road, and driver inputs
-5. **Modeling** – trained `RandomForestClassifier`
-6. **Evaluation** – accuracy, ROC, and manual examples
+We combined multiple CSVs of 2023 accident records from the **Israeli Central Bureau of Statistics** and **Israeli Police**.  
+After merging on `pk_teuna_fikt`, we retained only official police-verified rows (i.e. not survey data).
 
-Threshold tuned to `0.39` for improved F1 on high-risk class.
+- Final dataset contained **over 40,000 rows** and **60+ features**
+- We filtered only intersections with valid GPS (X/Y) and sufficient accident history
+- Handled missing values by dropping noisy or empty columns
 
 ---
 
-## 🖥️ App: Streamlit Interface
+## 3️⃣ Feature Engineering
 
-Our Streamlit app receives real-time user input and performs:
+We engineered features from 3 domains:
 
-- Age, gender, license year → converts to ML features
-- User inputs X/Y → closest intersection loaded
-- Dynamic features (hour, weekday, month, night)
-- Predicts if junction is dangerous
-- Displays map and details
+**A. Time**
 
----
+- `hour`, `weekday`, `month` were transformed into **cyclical features** using sin/cos encoding to preserve distance (e.g. 23 ↔ 0)
 
-### 🗺️ Map View
+**B. Driver Context**
 
-- Uses `folium` and `streamlit-folium`
-- Converts ITM coordinates to GPS (WGS84)
-- Interactive marker with popup ("Safe" or "Dangerous")
+- Age grouped into HALMAS categories (15–85+)
+- Experience calculated from license year
+- Vehicle type encoded into 3 binary columns (private, commercial, two-wheeler)
 
----
+**C. Road & Environment**
 
-## 🧱 Tech Stack
+- Binary flags: road lighting, signage problems, weather clarity, slippery conditions
+- One-hot encoded road structure types
 
-| Component           | Tool                        |
-| ------------------- | --------------------------- |
-| UI                  | Streamlit                   |
-| ML Model            | Scikit-learn (RandomForest) |
-| Coordinates         | pyproj                      |
-| Map Rendering       | Folium                      |
-| Geodata             | df_static.csv               |
-| Deployment (Future) | React + Flask               |
+> ✅ Engineering handled many challenges like non-numeric data, inconsistent columns, and missing values.
 
 ---
 
-## 🌐 Planned Features
+## 4️⃣ Modeling & Training
 
-- [ ] Real-time GPS location instead of manual X/Y
-- [ ] Weather integration (OpenWeather API)
-- [ ] Route safety alerts during trip (Google Directions API)
-- [ ] User login & usage history
-- [ ] Upgrade to full stack (React + FastAPI)
+We trained multiple models, ultimately selecting:
 
----
+- `RandomForestClassifier` from scikit-learn
+- Target: binary risk classification (high vs low)
 
-## 📁 Project Structure
+> We manually tuned the classification threshold to `0.39` for better **recall on high-risk** cases  
+> (a standard 0.5 threshold underperformed due to class imbalance)
 
-```
-final_project/
-├── smart_junction_app/
-│   └── app.py                # Streamlit app
-├── data_base/
-│   └── df_static.csv         # Processed intersection data
-├── model/
-│   └── rf_balanced.pkl       # Trained model
-├── SafeJunctionDetection.ipynb  # Notebook with full pipeline
-├── README.md
-```
+We validated results using:
+
+- Accuracy and F1-score
+- Confusion matrix
+- ROC AUC and threshold tuning curves
+- Manual real-world scenarios (X/Y samples)
 
 ---
 
-## 👥 Authors
+## 5️⃣ App Deployment
 
-- Itamar Shapira & Ofir Rodity
-- Sapir College – B.Sc Computer Science
-- Final Year Project – 2025
+We deployed the model inside a real-time web app built with **Streamlit**, where users can:
+
+1. Input driver details
+2. Enter intersection coordinates
+3. Automatically get context (time, weekday, hour)
+4. View prediction and **live map**
+
+> The app uses `folium` to render a dynamic map with markers:  
+> ✅ Green = Safe  ⚠️ Red = Dangerous
+
+Coordinates are converted from **ITM** to **WGS84** for map display using `pyproj`.
+
+---
+
+## 🧱 Tech Summary
+
+| Layer             | Tools                      |
+| ----------------- | -------------------------- |
+| ML Modeling       | scikit-learn               |
+| Data Wrangling    | pandas, numpy              |
+| UI + Map          | Streamlit + folium         |
+| Coordinate System | pyproj (ITM → WGS84)       |
+| Dataset Size      | 40,000+ rows, 60+ features |
+
+---
+
+## 🛣️ Future Plans
+
+- [ ] Full-stack React + Flask integration
+- [ ] Google Maps route + risk overlay
+- [ ] Real-time driver GPS + voice alerts
+- [ ] Weather API integration
+- [ ] Save prediction history per user
+
+---
